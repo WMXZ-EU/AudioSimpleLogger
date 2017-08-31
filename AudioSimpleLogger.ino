@@ -36,9 +36,6 @@
 #define DO_DEBUG 2
 #include "record_logger.h"
 
-//NOTE: Actual implementation requires uSD formatted wth exFAT
-//************************************************************
-
 // some definitions
 // for AudioRecordLogger
 #define NCH 4   // number of channels can be 1, 2, 4
