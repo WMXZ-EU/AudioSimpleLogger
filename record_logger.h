@@ -33,7 +33,7 @@ class uSD_Logger
 {
   public:
   void init(void);
-  uint32_t save(char *fmt, int mxfn, int mxblk);
+  uint32_t save(char *fmt, int mxfn, int max_mb);
   uint32_t overrun=0;
   uint32_t maxBlockSize=0;
 
@@ -46,6 +46,7 @@ class uSD_Logger
   c_mFS mFS;
 };
 
+/*--------------- AudioRecorderLogger class and methods ------------------*/
 template <int nc, int nq, int na>
 class AudioRecordLogger : public AudioStream, public uSD_Logger
 {
@@ -131,14 +132,14 @@ private:
   volatile uint8_t head, tail, enabled;
 
   int16_t buffer[na*nc*AUDIO_BLOCK_SAMPLES];
-
 };
 
+/*--------------- uSD_logger methods ----------------------*/
 void uSD_Logger::init(void)
-  {
-    mFS.init();
-    fileStatus=0;
-  }
+{
+  mFS.init();
+  fileStatus=0;
+}
 
 uint32_t uSD_Logger::save(char *fmt, int mxfn, int max_mb )
 { // does also open/close a file when required
@@ -177,7 +178,7 @@ uint32_t uSD_Logger::save(char *fmt, int mxfn, int max_mb )
   { 
     // write to file
     uint16_t nbuf = maxBlockSize;
-    uint32_t mxblk = (max_mb*1024*1024)/maxBlockSize;
+    uint32_t maxLoggerCount = (max_mb*1024*1024)/maxBlockSize;
     uint8_t *buffer=drain();
     if(buffer)
     {
@@ -186,7 +187,7 @@ uint32_t uSD_Logger::save(char *fmt, int mxfn, int max_mb )
       if(fileStatus == 2)
       {
         loggerCount++;
-        if(loggerCount == mxblk)
+        if(loggerCount == maxLoggerCount)
         { fileStatus= 3;}
 #if DO_DEBUG == 2
         else
