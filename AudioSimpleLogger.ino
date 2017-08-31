@@ -39,7 +39,7 @@
 // some definitions
 // for AudioRecordLogger
 #define NCH 4   // number of channels can be 1, 2, 4
-#define NQ  150 // number of elements in queue
+#define NQ  (600/NCH) // number of elements in queue
 // NCH*NQ should be <600 (for about 200 kB RAM usage) 
 
 // for uSD_Logger
