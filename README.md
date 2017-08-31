@@ -14,3 +14,5 @@ To Run, edit the following lines
 - #define FMT "A%04d.bin"
 - #define MXFN 10     // max number fo files
 - #define MAX_MB 40   // max (expected) file size in MB
+
+# Last Version 31-08-2017 16:00 UTC
