@@ -24,8 +24,14 @@
 #include <core_pins.h>
 #include <usb_serial.h>
 
-#include "input_i2s.h"
-#include "input_i2s_quad.h"
+#define PJRC_AUDIO
+#ifdef PJRC_AUDIO
+  #include "input_i2s.h"
+  #include "input_i2s_quad.h"
+#else
+  #include "input_i2sm.h"
+  #include "input_i2s_quadm.h"
+#endif
 #include "usb_audio.h"
 
 // set DO_DEBUG
@@ -38,7 +44,7 @@
 
 // some definitions
 // for AudioRecordLogger
-#define NCH 4   // number of channels can be 1, 2, 4
+#define NCH 2   // number of channels can be 1, 2, 4
 #define NQ  (600/NCH) // number of elements in queue
 // NCH*NQ should be <600 (for about 200 kB RAM usage) 
 
@@ -59,20 +65,34 @@
 
 // 31-aug-2017: 
 // for ICS4343x microphones
-// T3.2  T3.6     Mic1  Mic2  Mic3  Mic4
-// GND   GND      GND   GND   GND   GND
-// 3.3V  3.3V     VCC   VCC   VCC   VCC
-// Pin9  Pin9     CLK   CLK   CLK   CLK
-// Pin23 Pin23    WS    WS    WS    WS
-// Pin13 Pin13    SD    SD    --    --
-// Pin30 Pin38    --    --    SD    SD
-// GND   GND      L/R   --    L/R   --
-// 3.3   3.3      --    L/R   --    L/R
+// T3.2m  T3.6m T3.2  T3.6     Mic1  Mic2  Mic3  Mic4
+// GND    GND   GND   GND      GND   GND   GND   GND
+// 3.3V   3.3V  3.3V  3.3V     VCC   VCC   VCC   VCC
+// Pin12  Pin12 Pin9  Pin9     CLK   CLK   CLK   CLK
+// Pin11  Pin11 Pin23 Pin23    WS    WS    WS    WS
+// Pin13  Pin13 Pin13 Pin13    SD    SD    --    --
+// Pin30  Pin38 Pin30 Pin38    --    --    SD    SD
+// GND    GND   GND   GND      L/R   --    L/R   --
+// 3.3    3.3   3.3   3.3      --    L/R   --    L/R
 
-#if NCH<=2
-  AudioInputI2S                 i2s1; 
-#elif NCH==4
-  AudioInputI2SQuad             i2s1; 
+// PJRC Audio uses for I2S MCLK and therefore uses RX slaved internally to TX
+// that is, TX_BCLK and TX_FS are sending out data but receive data on RDX0, RDX1
+// the modified (local) implementation does not use MCLK and therefore can use
+// RX_CLK and RX_FS
+//
+//#define PJRC_AUDIO 
+#ifdef PJRC_AUDIO
+  #if NCH<=2
+    AudioInputI2S                 i2s1; 
+  #elif NCH==4
+    AudioInputI2SQuad             i2s1; 
+  #endif
+#else
+  #if NCH<=2
+    AudioInputI2Sm                 i2s1; 
+  #elif NCH==4
+    AudioInputI2SQuadm             i2s1; 
+  #endif
 #endif
 AudioOutputUSB                  usb1;  
 AudioRecordLogger<NCH,NQ,NAUD>  logger1; 
