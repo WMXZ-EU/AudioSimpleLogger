@@ -94,8 +94,8 @@ void dateTime(uint16_t* date, uint16_t* time) {
 class c_mFS
 {
   private:
-  SdExFat sd;
-  ExFile file;
+  SdFs sd;
+  FsFile file;
   
   public:
     void init(void)
