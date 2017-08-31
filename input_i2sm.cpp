@@ -25,6 +25,7 @@
  */
  
  // WMXZ: modified for no MKLK pure RX system
+ // Use with care
 
 #include "input_i2sm.h"
 

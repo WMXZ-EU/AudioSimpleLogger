@@ -24,6 +24,10 @@
  * THE SOFTWARE.
  */
 
+ // WMXZ: modified for no MKLK pure RX system
+ // Use with care
+
+
 #include "input_i2s_quadm.h"
 
 DMAMEM static uint32_t i2s_rx_buffer[AUDIO_BLOCK_SAMPLES*2];

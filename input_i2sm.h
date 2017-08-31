@@ -24,6 +24,10 @@
  * THE SOFTWARE.
  */
 
+ // WMXZ: modified for no MKLK pure RX system
+ // Use with care
+
+
 #ifndef _input_i2sm_h_
 #define _input_i2sm_h_
 
