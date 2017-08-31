@@ -57,10 +57,6 @@
   #define NAUD 16
 #endif
 
-// for uSD_Logger file size
-#define MBUF (NAUD*NCH*AUDIO_BLOCK_SAMPLES*2)
-#define MXBLK (MAX_MB*1024*1024/MBUF)
-
 // 31-aug-2017: 
 // for ICS4343x microphones
 // T3.2  T3.6     Mic1  Mic2  Mic3  Mic4
@@ -107,7 +103,7 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  if(logger1.save(FMT,MXFN,MXBLK)==INF)
+  if(logger1.save(FMT,MXFN,MAX_MB)==INF)
   { logger1.end();
   }
     return;

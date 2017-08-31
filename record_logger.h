@@ -35,9 +35,10 @@ class uSD_Logger
   void init(void);
   uint32_t save(char *fmt, int mxfn, int mxblk);
   uint32_t overrun=0;
+  uint32_t maxBlockSize=0;
 
   private:
-  virtual uint8_t *drain(uint16_t *nbuf) =0;
+  virtual uint8_t *drain(void) =0;
   uint16_t fileStatus = INF;
   uint32_t ifn = 0;
   uint32_t loggerCount = 0;
@@ -50,7 +51,8 @@ class AudioRecordLogger : public AudioStream, public uSD_Logger
 {
 public:
   AudioRecordLogger (void) : AudioStream(nq, inputQueueArray),
-    head(0), tail(0), enabled(0), uSD_Logger(){ }
+    head(0), tail(0), enabled(0), uSD_Logger()
+  { maxBlockSize = na*nc*AUDIO_BLOCK_SAMPLES*2; }
 
   void begin(void) { clear(); enabled = 1; }
   void end(void) { enabled = 0; }
@@ -88,7 +90,7 @@ public:
     }
   }
 
-  uint8_t *drain(uint16_t *nbuf)
+  uint8_t *drain(void)
   {
     uint32_t n;
     if(head>tail) n=head-tail; else n = nq + head -tail;
@@ -97,7 +99,6 @@ public:
     if(n>nb)
     {
       int16_t *bptr = buffer;
-      *nbuf = na*nc*AUDIO_BLOCK_SAMPLES*2;
       //
       uint32_t t = tail;
       while(--nb>=0)
@@ -139,7 +140,7 @@ void uSD_Logger::init(void)
     fileStatus=0;
   }
 
-uint32_t uSD_Logger::save(char *fmt, int mxfn, int mxblk )
+uint32_t uSD_Logger::save(char *fmt, int mxfn, int max_mb )
 { // does also open/close a file when required
   //
   static uint16_t isLogging = 0; // flag to ensure single access to function
@@ -172,10 +173,12 @@ uint32_t uSD_Logger::save(char *fmt, int mxfn, int mxblk )
     isLogging = 0; return 1;
   }
 
-
   if(fileStatus==2)
-  { uint16_t nbuf;
-    uint8_t *buffer=drain(&nbuf);
+  { 
+    // write to file
+    uint16_t nbuf = maxBlockSize;
+    uint32_t mxblk = (max_mb*1024*1024)/maxBlockSize;
+    uint8_t *buffer=drain();
     if(buffer)
     {
       if (!mFS.write(buffer, nbuf))
@@ -195,8 +198,8 @@ uint32_t uSD_Logger::save(char *fmt, int mxfn, int mxblk )
 #endif
       }
     }
+    if(fileStatus==2){ isLogging = 0; return 1; }
   }
-  if(fileStatus==2){ isLogging = 0; return 1; }
 
   if(fileStatus==3)
   {
