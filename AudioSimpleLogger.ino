@@ -105,9 +105,6 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 // the modified (local) implementation does not use MCLK and therefore can use
 // RX_BCLK and RX_FS
 //
-// the following function patches the I2S driver and may have side-effects
-// not needed if only PJRC I2S pin selection is used
-//
 // PJRC pin selection
 // Pin11 MCLK
 // Pin9  TX_BCLK
@@ -117,6 +114,9 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 // Pin11  RX_BCLK
 // Pin12  RX_FS
  
+// the following function patches the I2S driver and may have side-effects
+// not needed if only PJRC I2S pin selection is used
+//
 void is2_switchRxOnly(int on)
 {
   if(on)
