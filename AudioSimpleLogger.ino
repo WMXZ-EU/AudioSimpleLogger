@@ -29,13 +29,13 @@
 
 #include "usb_audio.h"
 
+/*************** change if required *****************************/
 // set DO_DEBUG
 // to 0 for no printout
 // to 1 to print only filename
 // to 2 to print also progress and number of audio blocks used
 // the last can be useful to select good uSD card and tune queue length (NQ below)
 #define DO_DEBUG 2
-#include "record_logger.h"
 
 // some definitions
 // for AudioRecordLogger
@@ -45,11 +45,14 @@
 
 // for uSD_Logger
 #define FMT "A%04d.bin"
-#define MXFN 10     // max number fo files
+#define MXFN 10     // max number of files
 #define MAX_MB 40   // max (expected) file size in MB
 
 // for I2S
 #define I2S_RX_ONLY 1 // set to 1 if using pin 11,12 for RX_BCLK, RX_FS; set to 0 for PJRC Audio board
+
+/*************** end of possible changes ************************/
+#include "record_logger.h"
 
 // for uSD_Logger write buffer
 // the sequence (64,32,16) is for 16kB write buffer
