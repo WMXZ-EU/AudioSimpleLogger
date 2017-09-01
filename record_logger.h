@@ -29,6 +29,7 @@
 #define INF (-1)
 #include "mfs.h"
 
+/*--------------  - uSDLogger class          ------------------*/
 class uSD_Logger
 {
   public:
@@ -46,7 +47,7 @@ class uSD_Logger
   c_mFS mFS;
 };
 
-/*--------------- AudioRecorderLogger class and methods ------------------*/
+/*------- AudioRecorderLogger class and small methods -----------*/
 template <int nc, int nq, int na>
 class AudioRecordLogger : public AudioStream, public uSD_Logger
 {
@@ -58,7 +59,21 @@ public:
   void begin(void) { clear(); enabled = 1; }
   void end(void) { enabled = 0; }
 
-  void clear(void)
+  void clear(void);
+  void update(void) ;
+  uint8_t *drain(void);
+
+private:
+  audio_block_t *inputQueueArray[nq];
+  audio_block_t * volatile queue[nc][nq];
+  volatile uint8_t head, tail, enabled;
+
+  int16_t buffer[na*nc*AUDIO_BLOCK_SAMPLES];
+};
+
+/*--------------- larger AudioRecorderLogger methods ------------------*/
+template <int nc, int nq, int na>
+void AudioRecordLogger<nc,nq,na>:: clear(void)
   {
     uint32_t t = tail;
     while (t != head) {
@@ -68,7 +83,8 @@ public:
     tail = t;
   }
 
-  void update(void) 
+template <int nc, int nq, int na>
+void AudioRecordLogger<nc,nq,na>:: update(void)
   {
     audio_block_t *block[nq];
     uint32_t h;
@@ -91,7 +107,8 @@ public:
     }
   }
 
-  uint8_t *drain(void)
+template <int nc, int nq, int na>
+uint8_t * AudioRecordLogger<nc,nq,na>:: drain(void)
   {
     uint32_t n;
     if(head>tail) n=head-tail; else n = nq + head -tail;
@@ -126,25 +143,6 @@ public:
     return 0;
   }
 
-private:
-  audio_block_t *inputQueueArray[nq];
-  audio_block_t * volatile queue[nc][nq];
-  volatile uint8_t head, tail, enabled;
-
-  int16_t buffer[na*nc*AUDIO_BLOCK_SAMPLES];
-};
-/*
-//template <int nc, int nq, int na>
-void AudioRecordLogger<nc,nq,na> ::  clear(void)
-  {
-    uint32_t t = tail;
-    while (t != head) {
-      if (++t >= nq) t = 0;
-      for(int ii=0; ii<nq;ii++) release(queue[ii][t]);
-    }
-    tail = t;
-  }
-*/
 /*--------------- uSD_logger methods ----------------------*/
 void uSD_Logger::init(void)
 {
