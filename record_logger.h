@@ -133,7 +133,18 @@ private:
 
   int16_t buffer[na*nc*AUDIO_BLOCK_SAMPLES];
 };
-
+/*
+//template <int nc, int nq, int na>
+void AudioRecordLogger<nc,nq,na> ::  clear(void)
+  {
+    uint32_t t = tail;
+    while (t != head) {
+      if (++t >= nq) t = 0;
+      for(int ii=0; ii<nq;ii++) release(queue[ii][t]);
+    }
+    tail = t;
+  }
+*/
 /*--------------- uSD_logger methods ----------------------*/
 void uSD_Logger::init(void)
 {

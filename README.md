@@ -15,4 +15,12 @@ To Run, edit the following lines
 - #define MXFN 10     // max number fo files
 - #define MAX_MB 40   // max (expected) file size in MB
 
-# Last Version 31-08-2017 16:00 UTC
+- // for I2S
+- #define I2S_RX_ONLY 1 // set to 1 if using pin 11,12 for RX_BCLK, RX_FS; set to 0 for PJRC Audio board
+
+# Files used
+- AudioSimpleLogger.ino
+- record_logger.h
+- mfs.h
+
+# Last Version 01-09-2017 08:00 Local

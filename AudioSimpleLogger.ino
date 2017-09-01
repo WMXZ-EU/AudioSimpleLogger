@@ -44,7 +44,7 @@
 
 // some definitions
 // for AudioRecordLogger
-#define NCH 2   // number of channels can be 1, 2, 4
+#define NCH 4   // number of channels can be 1, 2, 4
 #define NQ  (600/NCH) // number of elements in queue
 // NCH*NQ should be <600 (for about 200 kB RAM usage) 
 
@@ -52,6 +52,9 @@
 #define FMT "A%04d.bin"
 #define MXFN 10     // max number fo files
 #define MAX_MB 40   // max (expected) file size in MB
+
+// for I2S
+#define I2S_RX_ONLY 1 // set to 1 if using pin 11,12 for RX_BCLK, RX_FS; set to 0 for PJRC Audio board
 
 // for uSD_Logger write buffer
 // the sequence (64,32,16) is for 16kB write buffer
@@ -63,36 +66,10 @@
   #define NAUD 16
 #endif
 
-// 31-aug-2017: 
-// for ICS4343x microphones
-// T3.2m  T3.6m T3.2  T3.6     Mic1  Mic2  Mic3  Mic4
-// GND    GND   GND   GND      GND   GND   GND   GND
-// 3.3V   3.3V  3.3V  3.3V     VCC   VCC   VCC   VCC
-// Pin12  Pin12 Pin9  Pin9     CLK   CLK   CLK   CLK
-// Pin11  Pin11 Pin23 Pin23    WS    WS    WS    WS
-// Pin13  Pin13 Pin13 Pin13    SD    SD    --    --
-// Pin30  Pin38 Pin30 Pin38    --    --    SD    SD
-// GND    GND   GND   GND      L/R   --    L/R   --
-// 3.3    3.3   3.3   3.3      --    L/R   --    L/R
-
-// PJRC Audio uses for I2S MCLK and therefore uses RX slaved internally to TX
-// that is, TX_BCLK and TX_FS are sending out data but receive data on RDX0, RDX1
-// the modified (local) implementation does not use MCLK and therefore can use
-// RX_CLK and RX_FS
-//
-//#define PJRC_AUDIO 
-#ifdef PJRC_AUDIO
-  #if NCH<=2
-    AudioInputI2S                 i2s1; 
-  #elif NCH==4
-    AudioInputI2SQuad             i2s1; 
-  #endif
-#else
-  #if NCH<=2
-    AudioInputI2Sm                 i2s1; 
-  #elif NCH==4
-    AudioInputI2SQuadm             i2s1; 
-  #endif
+#if NCH<=2
+  AudioInputI2S                 i2s1; 
+#elif NCH==4
+  AudioInputI2SQuad             i2s1; 
 #endif
 AudioOutputUSB                  usb1;  
 AudioRecordLogger<NCH,NQ,NAUD>  logger1; 
@@ -108,9 +85,57 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
   AudioConnection        patchCord6(i2s1, 3, logger1, 3);
 #endif
 
+//-------------------- Connections ------------------------
+// 01-sep-2017: 
+// for ICS4343x microphones
+// T3.2a  T3.6a   T3.2  T3.6     Mic1  Mic2  Mic3  Mic4
+// GND    GND     GND   GND      GND   GND   GND   GND
+// 3.3V   3.3V    3.3V  3.3V     VCC   VCC   VCC   VCC
+// Pin12  Pin12   Pin9  Pin9     CLK   CLK   CLK   CLK
+// Pin11  Pin11   Pin23 Pin23    WS    WS    WS    WS
+// Pin13  Pin13   Pin13 Pin13    SD    SD    --    --
+// Pin30  Pin38   Pin30 Pin38    --    --    SD    SD
+// GND    GND     GND   GND      L/R   --    L/R   --
+// 3.3    3.3     3.3   3.3      --    L/R   --    L/R
+//
+// T3.xa are alternative pin settings for pure RX mode (input only)
+
+// PJRC Audio uses for I2S MCLK and therefore uses RX sync'ed internally to TX
+// that is, TX_BCLK and TX_FS are sending out data but receive data on RDX0, RDX1
+// the modified (local) implementation does not use MCLK and therefore can use
+// RX_BCLK and RX_FS
+//
+// the following function patches the I2S driver and may have side-effects
+void is2_switchRxOnly(int on)
+{
+  if(on)
+  { //switch rx async, tx sync'd to rx
+    I2S0_TCR2 |= I2S_TCR2_SYNC(1);
+    I2S0_RCR2 |= I2S_RCR2_SYNC(0);
+    CORE_PIN11_CONFIG = PORT_PCR_MUX(4); // pin 11, PTC6, I2S0_RX_BCLK
+    CORE_PIN12_CONFIG = PORT_PCR_MUX(4); // pin 12, PTC7, I2S0_RX_FS
+    pinMode(23,INPUT);
+    pinMode(9,INPUT);
+  }
+  else
+  { //switch tx async, rx sync'd to tx
+    I2S0_TCR2 |= I2S_TCR2_SYNC(0);
+    I2S0_RCR2 |= I2S_RCR2_SYNC(1);
+  // configure pin mux for 3 clock signals (PJRC_AudioAdapter)
+    CORE_PIN23_CONFIG = PORT_PCR_MUX(6); // pin 23, PTC2, I2S0_TX_FS (LRCLK)
+    CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
+    CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
+    pinMode(12,INPUT);
+  }
+}
+/************************ Main Sketch *********************************/
 void setup() {
   // put your setup code here, to run once:
   AudioMemory(50+NCH*NQ);
+  
+  // switch I2S from PJRC mode to pure RX mode
+  is2_switchRxOnly(I2S_RX_ONLY);
+  //
   while(!Serial);
   Serial.println("Simple Logger");
 
