@@ -88,15 +88,15 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 //-------------------- Connections ------------------------
 // 01-sep-2017: 
 // for ICS4343x microphones
-// T3.2a  T3.6a   T3.2  T3.6     Mic1  Mic2  Mic3  Mic4
-// GND    GND     GND   GND      GND   GND   GND   GND
-// 3.3V   3.3V    3.3V  3.3V     VCC   VCC   VCC   VCC
-// Pin12  Pin12   Pin9  Pin9     CLK   CLK   CLK   CLK
-// Pin11  Pin11   Pin23 Pin23    WS    WS    WS    WS
-// Pin13  Pin13   Pin13 Pin13    SD    SD    --    --
-// Pin30  Pin38   Pin30 Pin38    --    --    SD    SD
-// GND    GND     GND   GND      L/R   --    L/R   --
-// 3.3    3.3     3.3   3.3      --    L/R   --    L/R
+// T3.2a  T3.6a   T3.2  T3.6            Mic1  Mic2  Mic3  Mic4   
+// GND    GND     GND   GND             GND   GND   GND   GND    
+// 3.3V   3.3V    3.3V  3.3V            VCC   VCC   VCC   VCC    
+// Pin11  Pin11   Pin9  Pin9    BCLK    CLK   CLK   CLK   CLK 
+// Pin12  Pin12   Pin23 Pin23   FS      WS    WS    WS    WS  
+// Pin13  Pin13   Pin13 Pin13   RXD0    SD    SD    --    --  
+// Pin30  Pin38   Pin30 Pin38   RXD1    --    --    SD    SD  
+// GND    GND     GND   GND             L/R   --    L/R   --
+// 3.3    3.3     3.3   3.3             --    L/R   --    L/R
 //
 // T3.xa are alternative pin settings for pure RX mode (input only)
 
@@ -106,6 +106,17 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 // RX_BCLK and RX_FS
 //
 // the following function patches the I2S driver and may have side-effects
+// not needed if only PJRC I2S pin selection is used
+//
+// PJRC pin selection
+// Pin11 MCLK
+// Pin9  TX_BCLK
+// Pin23 TX_FS
+//
+// RX_ONLY pin selection
+// Pin11  RX_
+// Pin12  RX_
+ 
 void is2_switchRxOnly(int on)
 {
   if(on)
