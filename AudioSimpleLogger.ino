@@ -24,14 +24,9 @@
 #include <core_pins.h>
 #include <usb_serial.h>
 
-#define PJRC_AUDIO
-#ifdef PJRC_AUDIO
-  #include "input_i2s.h"
-  #include "input_i2s_quad.h"
-#else
-  #include "input_i2sm.h"
-  #include "input_i2s_quadm.h"
-#endif
+#include "input_i2s.h"
+#include "input_i2s_quad.h"
+
 #include "usb_audio.h"
 
 // set DO_DEBUG
