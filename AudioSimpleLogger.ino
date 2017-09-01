@@ -114,8 +114,8 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 // Pin23 TX_FS
 //
 // RX_ONLY pin selection
-// Pin11  RX_
-// Pin12  RX_
+// Pin11  RX_BCLK
+// Pin12  RX_FS
  
 void is2_switchRxOnly(int on)
 {
@@ -129,7 +129,7 @@ void is2_switchRxOnly(int on)
     pinMode(9,INPUT);
   }
   else
-  { //switch tx async, rx sync'd to tx
+  { //switch tx async, rx sync'd to tx (PJRC mode)
     I2S0_TCR2 |= I2S_TCR2_SYNC(0);
     I2S0_RCR2 |= I2S_RCR2_SYNC(1);
   // configure pin mux for 3 clock signals (PJRC_AudioAdapter)
