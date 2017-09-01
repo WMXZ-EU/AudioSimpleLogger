@@ -163,14 +163,6 @@ void loop() {
   { logger1.end();
   }
     return;
-  
-  static uint32_t t0=0;
-  if(millis()-t0  > 1000)
-  {
-    Serial.print("Memory usage : ");
-    Serial.println(AudioMemoryUsage());
-    t0=millis();
-  }
 }
 
 
