@@ -35,6 +35,7 @@ class uSD_Logger
   public:
   void init(void);
   uint32_t save(char *fmt, int mxfn, int max_mb);
+  uint32_t save(int max_mb);
   uint32_t overrun=0;
   uint32_t maxBlockSize=0;
 
@@ -148,6 +149,94 @@ void uSD_Logger::init(void)
 {
   mFS.init();
   fileStatus=0;
+}
+
+#include <time.h>
+struct tm seconds2tm(uint32_t tt);
+
+
+uint16_t generateFilename(char *dev, char *filename)
+{
+  struct tm tx=seconds2tm(RTC_TSR);;
+  sprintf(filename,"%s_%04d%02d%02d_%02d%02d%02d.bin",dev,
+          tx.tm_year, tx.tm_mon, tx.tm_mday,
+          tx.tm_hour, tx.tm_min, tx.tm_sec);
+  return 1;
+}
+
+uint32_t uSD_Logger::save(int max_mb )
+{ // does also open/close a file when required
+  //
+  static uint16_t isLogging = 0; // flag to ensure single access to function
+
+  char filename[80];
+
+  if (isLogging) return 0; // we are already busy (should not happen)
+  isLogging = 1;
+
+  if(fileStatus==4) { isLogging = 0; return 1; } // don't do anything anymore
+
+  if(fileStatus==0)
+  {
+    // open new file
+    if(!generateFilename("A",filename))  // have end of acquisition reached, so end operation
+    { fileStatus = 4;
+      isLogging = 0; return INF; // tell calling loop() to stop ACQ
+    } // end of all operations
+
+    mFS.open(filename);
+#if DO_DEBUG >0
+    Serial.printf(" %s\n\r",filename);
+#endif    
+    loggerCount=0;  // count successful transfers
+    overrun=0;      // count buffer overruns
+    //
+    fileStatus = 2; // flag as open
+    isLogging = 0; return 1;
+  }
+
+  if(fileStatus==2)
+  { 
+    // write to file
+    uint16_t nbuf = maxBlockSize;
+    uint32_t maxLoggerCount = (max_mb*1024*1024)/maxBlockSize;
+    uint8_t *buffer=drain();
+    if(buffer)
+    {
+      if (!mFS.write(buffer, nbuf))
+      { fileStatus = 3;} // close file on write failure
+      if(fileStatus == 2)
+      {
+        loggerCount++;
+        if(loggerCount == maxLoggerCount)
+        { fileStatus= 3;}
+#if DO_DEBUG == 2
+        else
+        {
+          if (!(loggerCount % 10)) Serial.printf(".");
+          if (!(loggerCount % 640)) {Serial.println(); }
+          Serial.flush();
+        }
+#endif
+      }
+    }
+    if(fileStatus==2){ isLogging = 0; return 1; }
+  }
+
+  if(fileStatus==3)
+  {
+    //close file
+    mFS.close();
+#if DO_DEBUG ==2
+    Serial.printf("\n\r(%d,%d)\n\r",overrun,AudioMemoryUsageMax());
+    AudioMemoryUsageMaxReset(); 
+#endif    
+    //
+    fileStatus= 0; // flag file as closed   
+    isLogging = 0; return 1;
+  }
+  
+  isLogging=0; return 0;
 }
 
 uint32_t uSD_Logger::save(char *fmt, int mxfn, int max_mb )

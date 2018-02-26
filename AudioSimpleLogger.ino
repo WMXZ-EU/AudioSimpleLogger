@@ -39,7 +39,7 @@
 
 // some definitions
 // for AudioRecordLogger
-#define NCH 4   // number of channels can be 1, 2, 4
+#define NCH 2   // number of channels can be 1, 2, 4
 #define NQ  (600/NCH) // number of elements in queue
 // NCH*NQ should be <600 (for about 200 kB RAM usage) 
 
@@ -64,10 +64,54 @@
   #define NAUD 16
 #endif
 
+static void is2_switchRxOnly(int on)
+{
+  if(on)
+  { //switch rx async, tx sync'd to rx
+    I2S0_TCR2 |= I2S_TCR2_SYNC(1);
+    I2S0_RCR2 |= I2S_RCR2_SYNC(0);
+    CORE_PIN11_CONFIG = PORT_PCR_MUX(4); // pin 11, PTC6, I2S0_RX_BCLK
+    CORE_PIN12_CONFIG = PORT_PCR_MUX(4); // pin 12, PTC7, I2S0_RX_FS
+    pinMode(23,INPUT);
+    pinMode(9,INPUT);
+  }
+  else
+  { //switch tx async, rx sync'd to tx (PJRC mode)
+    I2S0_TCR2 |= I2S_TCR2_SYNC(0);
+    I2S0_RCR2 |= I2S_RCR2_SYNC(1);
+  // configure pin mux for 3 clock signals (PJRC_AudioAdapter)
+    CORE_PIN23_CONFIG = PORT_PCR_MUX(6); // pin 23, PTC2, I2S0_TX_FS (LRCLK)
+    CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
+    CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
+    pinMode(12,INPUT);
+  }
+}
+
+class AudioInputI2Sm: public AudioInputI2S 
+{
+public:
+  AudioInputI2Sm(void) : AudioInputI2S() { begin();}
+  void begin(void)
+  { // switch I2S from PJRC mode to pure RX mode
+    is2_switchRxOnly(I2S_RX_ONLY);
+  }
+};
+
+class AudioInputI2SQuadm: public AudioInputI2SQuad 
+{
+public:
+  AudioInputI2SQuadm(void) : AudioInputI2SQuad() { begin();}
+  
+  void begin(void)
+  { // switch I2S from PJRC mode to pure RX mode
+    is2_switchRxOnly(I2S_RX_ONLY);
+  }
+};
+
 #if NCH<=2
-  AudioInputI2S                 i2s1; 
+  AudioInputI2Sm                i2s1; 
 #elif NCH==4
-  AudioInputI2SQuad             i2s1; 
+  AudioInputI2SQuadm            i2s1; 
 #endif
 AudioOutputUSB                  usb1;  
 AudioRecordLogger<NCH,NQ,NAUD>  logger1; 
@@ -115,35 +159,13 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 // the following function patches the I2S driver and may have side-effects
 // not needed if only PJRC I2S pin selection is used
 //
-void is2_switchRxOnly(int on)
-{
-  if(on)
-  { //switch rx async, tx sync'd to rx
-    I2S0_TCR2 |= I2S_TCR2_SYNC(1);
-    I2S0_RCR2 |= I2S_RCR2_SYNC(0);
-    CORE_PIN11_CONFIG = PORT_PCR_MUX(4); // pin 11, PTC6, I2S0_RX_BCLK
-    CORE_PIN12_CONFIG = PORT_PCR_MUX(4); // pin 12, PTC7, I2S0_RX_FS
-    pinMode(23,INPUT);
-    pinMode(9,INPUT);
-  }
-  else
-  { //switch tx async, rx sync'd to tx (PJRC mode)
-    I2S0_TCR2 |= I2S_TCR2_SYNC(0);
-    I2S0_RCR2 |= I2S_RCR2_SYNC(1);
-  // configure pin mux for 3 clock signals (PJRC_AudioAdapter)
-    CORE_PIN23_CONFIG = PORT_PCR_MUX(6); // pin 23, PTC2, I2S0_TX_FS (LRCLK)
-    CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
-    CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
-    pinMode(12,INPUT);
-  }
-}
+
+uint16_t generateFilename(char *dev, char *filename);
 /************************ Main Sketch *********************************/
 void setup() {
   // put your setup code here, to run once:
   AudioMemory(50+NCH*NQ);
   
-  // switch I2S from PJRC mode to pure RX mode
-  is2_switchRxOnly(I2S_RX_ONLY);
   //
   while(!Serial);
   Serial.println("Simple Logger");
@@ -157,7 +179,8 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  if(logger1.save(FMT,MXFN,MAX_MB)==INF)
+//  if(logger1.save(FMT,MXFN,MAX_MB)==INF)
+  if(logger1.save(MAX_MB)==INF)
   { logger1.end();
   }
     return;
