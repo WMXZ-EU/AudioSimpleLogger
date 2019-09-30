@@ -23,7 +23,7 @@
 #ifndef RECORD_LOGGER_H
 #define RECORD_LOGGER_H
 
-#include "Arduino.h"
+//#include "Arduino.h"
 #include "AudioStream.h"
 
 #define INF (-1)
@@ -144,6 +144,9 @@ uint8_t * AudioRecordLogger<nc,nq,na>:: drain(void)
     return 0;
   }
 
+/*
+ *
+ */
 /*--------------- uSD_logger methods ----------------------*/
 void uSD_Logger::init(void)
 {
@@ -151,18 +154,8 @@ void uSD_Logger::init(void)
   fileStatus=0;
 }
 
-#include <time.h>
-struct tm seconds2tm(uint32_t tt);
 
-
-uint16_t generateFilename(char *dev, char *filename)
-{
-  struct tm tx=seconds2tm(RTC_TSR);;
-  sprintf(filename,"%s_%04d%02d%02d_%02d%02d%02d.bin",dev,
-          tx.tm_year, tx.tm_mon, tx.tm_mday,
-          tx.tm_hour, tx.tm_min, tx.tm_sec);
-  return 1;
-}
+uint16_t generateFilename(char *filename):
 
 uint32_t uSD_Logger::save(int max_mb )
 { // does also open/close a file when required
@@ -314,6 +307,73 @@ uint32_t uSD_Logger::save(char *fmt, int mxfn, int max_mb )
   }
   
   isLogging=0; return 0;
+}
+
+
+//------------------------------------------------------------------------------
+uint32_t uSD_Logger::save(int mustClose )
+{ // does also open/close a file when required
+  //
+  static uint16_t isLogging = 0; // flag to ensure single access to function
+
+  char filename[80];
+
+  if (isLogging) return 0; // we are already busy (should not happen)
+  isLogging = 1;
+
+  if(fileStatus==4) { isLogging = 0; return INF; } // don't do anything anymore
+
+  if(fileStatus==0)
+  {
+    // open new file
+	if(!generateFilename(filename)) { isLogging = 0; return INF;}  // Fatal error
+#if DO_DEBUG >0
+		Serial.printf(" %s\n\r",filename);
+#endif    
+    mFS.open(filename);
+    loggerCount=0;  // count successful transfers
+    //
+    fileStatus = 1; // flag as open
+  }
+
+  if((fileStatus==1) || (fileStatus==2))
+  { 
+    // write to file
+    uint16_t nbuf = maxBlockSize;
+    uint32_t maxLoggerCount = (max_mb*1024*1024)/maxBlockSize;
+    uint8_t *buffer=drain();
+    if(buffer)
+    {
+      if (!mFS.write(buffer, nbuf)){ fileStatus = 3; }	// close file on write failure
+
+      if(fileStatus==1)
+	  {
+		fileStatus=2; // open and writing
+		loggerCount=0;
+	  }
+	  else if(fileStatus==2)
+	  {
+        loggerCount++;
+#if DO_DEBUG == 2
+        if (!(loggerCount % 10)) Serial.printf(".");
+        if (!(loggerCount % 640)) {Serial.println(); }
+        Serial.flush();
+#endif
+  }
+
+  if(fileStatus==3)
+  {
+    //close file
+    mFS.close();
+#if DO_DEBUG ==2
+    Serial.printf("\n\r(%d,%d)\n\r",overrun,AudioMemoryUsageMax());
+    AudioMemoryUsageMaxReset(); 
+#endif    
+    //
+    fileStatus= 0; // flag file as closed   
+  }
+  
+  isLogging=0; return fileStatus;
 }
 
 #endif

@@ -20,14 +20,12 @@
  * THE SOFTWARE.
  */
 // the following includes are explicit to avoid inclusion of "SD.h"
+// WMXZ: modified 30-09-2019
+//
 #include <kinetis.h>
 #include <core_pins.h>
 #include <usb_serial.h>
 
-#include "input_i2s.h"
-#include "input_i2s_quad.h"
-
-#include "usb_audio.h"
 
 /*************** change if required *****************************/
 // set DO_DEBUG
@@ -40,8 +38,13 @@
 // some definitions
 // for AudioRecordLogger
 #define NCH 2   // number of channels can be 1, 2, 4
+
+#if !((NCH==1) || (NCH==2) || (NCH==4))
+	#error worong number of channels
+#endif
+// 
 #define NQ  (600/NCH) // number of elements in queue
-// NCH*NQ should be <600 (for about 200 kB RAM usage) 
+// NCH*NQ should be <600 (for about 200 kB RAM usage on T3.6) 
 
 // for uSD_Logger
 #define FMT "A%04d.bin"
@@ -49,83 +52,10 @@
 #define MAX_MB 40   // max (expected) file size in MB
 
 // for I2S
-#define I2S_RX_ONLY 1 // set to 1 if using pin 11,12 for RX_BCLK, RX_FS; set to 0 for PJRC Audio board
+#define I2S_RX_ONLY 0 // set to 0 for PJRC Audio board; set to 1 if using pin 11,12 for RX_BCLK, RX_FS (e.g. for MEMS)
 
-/*************** end of possible changes ************************/
-#include "record_logger.h"
-
-// for uSD_Logger write buffer
-// the sequence (64,32,16) is for 16kB write buffer
-#if NCH==1
-  #define NAUD 64
-#elif NCH==2
-  #define NAUD 32
-#elif NCH==4
-  #define NAUD 16
-#endif
-
-static void is2_switchRxOnly(int on)
-{
-  if(on)
-  { //switch rx async, tx sync'd to rx
-    I2S0_TCR2 |= I2S_TCR2_SYNC(1);
-    I2S0_RCR2 |= I2S_RCR2_SYNC(0);
-    CORE_PIN11_CONFIG = PORT_PCR_MUX(4); // pin 11, PTC6, I2S0_RX_BCLK
-    CORE_PIN12_CONFIG = PORT_PCR_MUX(4); // pin 12, PTC7, I2S0_RX_FS
-    pinMode(23,INPUT);
-    pinMode(9,INPUT);
-  }
-  else
-  { //switch tx async, rx sync'd to tx (PJRC mode)
-    I2S0_TCR2 |= I2S_TCR2_SYNC(0);
-    I2S0_RCR2 |= I2S_RCR2_SYNC(1);
-  // configure pin mux for 3 clock signals (PJRC_AudioAdapter)
-    CORE_PIN23_CONFIG = PORT_PCR_MUX(6); // pin 23, PTC2, I2S0_TX_FS (LRCLK)
-    CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
-    CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
-    pinMode(12,INPUT);
-  }
-}
-
-class AudioInputI2Sm: public AudioInputI2S 
-{
-public:
-  AudioInputI2Sm(void) : AudioInputI2S() { begin();}
-  void begin(void)
-  { // switch I2S from PJRC mode to pure RX mode
-    is2_switchRxOnly(I2S_RX_ONLY);
-  }
-};
-
-class AudioInputI2SQuadm: public AudioInputI2SQuad 
-{
-public:
-  AudioInputI2SQuadm(void) : AudioInputI2SQuad() { begin();}
-  
-  void begin(void)
-  { // switch I2S from PJRC mode to pure RX mode
-    is2_switchRxOnly(I2S_RX_ONLY);
-  }
-};
-
-#if NCH<=2
-  AudioInputI2Sm                i2s1; 
-#elif NCH==4
-  AudioInputI2SQuadm            i2s1; 
-#endif
-AudioOutputUSB                  usb1;  
-AudioRecordLogger<NCH,NQ,NAUD>  logger1; 
-
-AudioConnection          patchCord1(i2s1, 0, usb1, 0);
-AudioConnection          patchCord2(i2s1, 1, usb1, 1);
-AudioConnection          patchCord3(i2s1, 0, logger1, 0);
-#if NCH>1
-  AudioConnection        patchCord4(i2s1, 1, logger1, 1);
-#endif
-#if NCH==4
-  AudioConnection        patchCord5(i2s1, 2, logger1, 2);
-  AudioConnection        patchCord6(i2s1, 3, logger1, 3);
-#endif
+// to use USB needs USB_AUDIO selected
+#define USE_USB 0
 
 //-------------------- Connections ------------------------
 // 01-sep-2017: 
@@ -142,9 +72,10 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 //
 // T3.xa are alternative pin settings for pure RX mode (input only)
 
-// PJRC Audio uses for I2S MCLK and therefore uses RX sync'ed internally to TX
+// PJRC Audio uses for I2S MCLK and therefore uses RX internally sync'ed to TX
 // that is, TX_BCLK and TX_FS are sending out data but receive data on RDX0, RDX1
-// the modified (local) implementation does not use MCLK and therefore can use
+//
+// the modified (RX_ONLY) implementation does not use MCLK and therefore can use
 // RX_BCLK and RX_FS
 //
 // PJRC pin selection
@@ -160,7 +91,97 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 // not needed if only PJRC I2S pin selection is used
 //
 
-uint16_t generateFilename(char *dev, char *filename);
+
+/*************** end of possible changes ************************/
+#include "record_logger.h"
+
+#if I2S_RX_ONLY == 0
+	#if NCH<=2
+		#include "AudioInputI2S.h"
+	  AudioInputI2S                i2s1; 
+	#elif NCH==4
+		#include "AudioInputI2SQuad.h"
+	  AudioInputI2SQuad            i2s1; 
+	#endif
+
+#else
+	static void is2_switchRxOnly(int on)
+	{
+	  if(on)
+	  { //switch rx async, tx sync'd to rx
+		I2S0_TCR2 |= I2S_TCR2_SYNC(1);
+		I2S0_RCR2 |= I2S_RCR2_SYNC(0);
+		CORE_PIN11_CONFIG = PORT_PCR_MUX(4); // pin 11, PTC6, I2S0_RX_BCLK
+		CORE_PIN12_CONFIG = PORT_PCR_MUX(4); // pin 12, PTC7, I2S0_RX_FS
+		pinMode(23,INPUT);
+		pinMode(9,INPUT);
+	  }
+	  else
+	  { //switch tx async, rx sync'd to tx (PJRC mode)
+		I2S0_TCR2 |= I2S_TCR2_SYNC(0);
+		I2S0_RCR2 |= I2S_RCR2_SYNC(1);
+	  // configure pin mux for 3 clock signals (PJRC_AudioAdapter)
+		CORE_PIN23_CONFIG = PORT_PCR_MUX(6); // pin 23, PTC2, I2S0_TX_FS (LRCLK)
+		CORE_PIN9_CONFIG  = PORT_PCR_MUX(6); // pin  9, PTC3, I2S0_TX_BCLK
+		CORE_PIN11_CONFIG = PORT_PCR_MUX(6); // pin 11, PTC6, I2S0_MCLK
+		pinMode(12,INPUT);
+	  }
+	}
+
+	#if NCH<=2
+		#include "input_i2s.h"
+		class AudioInputI2Sm: public AudioInputI2S 
+		{
+		public:
+		  AudioInputI2Sm(void) : AudioInputI2S() { begin();}
+		  void begin(void)
+		  { // switch I2S from PJRC mode to pure RX mode
+			is2_switchRxOnly(I2S_RX_ONLY);
+		  }
+		};
+		AudioInputI2Sm          i2s1; 
+
+	#elif NCH==4
+		#include "input_i2s_quad.h"
+		class AudioInputI2SQuadm: public AudioInputI2SQuad 
+		{
+		public:
+		  AudioInputI2SQuadm(void) : AudioInputI2SQuad() { begin();}
+		  
+		  void begin(void)
+		  { // switch I2S from PJRC mode to pure RX mode
+			is2_switchRxOnly(I2S_RX_ONLY);
+		  }
+		};
+		AudioInputI2SQuadm      i2s1; 
+	#endif
+#endif
+
+#if USE_USB ==1
+	#include "usb_audio.h"
+	AudioOutputUSB                  usb1;  
+#endif
+// 
+// for uSD_Logger write buffer
+// the sequence (64,32,16) is for 16kB write buffer
+#define NAUD (64/NCH)
+AudioRecordLogger<NCH, NQ, NAUD> 		logger1; 
+
+// connecting all audio objects
+#if USE_USB ==1
+	AudioConnection          patchCord1(i2s1, 0, usb1, 0);
+	AudioConnection          patchCord2(i2s1, 1, usb1, 1);
+#endif
+AudioConnection          patchCord3(i2s1, 0, logger1, 0);
+
+#if NCH>1
+  AudioConnection        patchCord4(i2s1, 1, logger1, 1);
+#endif
+#if NCH==4
+  AudioConnection        patchCord5(i2s1, 2, logger1, 2);
+  AudioConnection        patchCord6(i2s1, 3, logger1, 3);
+#endif
+
 /************************ Main Sketch *********************************/
 void setup() {
   // put your setup code here, to run once:
@@ -180,10 +201,24 @@ void loop() {
   // put your main code here, to run repeatedly:
 
 //  if(logger1.save(FMT,MXFN,MAX_MB)==INF)
-  if(logger1.save(MAX_MB)==INF)
-  { logger1.end();
-  }
-    return;
+  if(logger1.save(MAX_MB)==INF) { logger1.end(); }
+  return;
 }
+
+//Auxillary functions
+
+#include <time.h>
+
+struct tm seconds2tm(uint32_t tt);
+uint16_t generateFilename(char *filename)
+{
+  struct tm tx=seconds2tm(RTC_TSR);
+  sprintf(filename,"%s_%04d%02d%02d_%02d%02d%02d.bin",
+		"WMXZ",
+        tx.tm_year, tx.tm_mon, tx.tm_mday,
+        tx.tm_hour, tx.tm_min, tx.tm_sec);
+  return 1;
+}
+
 
 
