@@ -309,7 +309,8 @@ uint32_t uSD_Logger::save(char *fmt, int mxfn, int max_mb )
   isLogging=0; return 0;
 }
 
-
+//------------------------------------------------------------------------------
+//******************************************************************************
 //------------------------------------------------------------------------------
 uint32_t uSD_Logger::save(int mustClose )
 { // does also open/close a file when required
@@ -338,9 +339,8 @@ uint32_t uSD_Logger::save(int mustClose )
 
   if((fileStatus==1) || (fileStatus==2))
   { 
-    // write to file
+    // fetch data from queue and write to file
     uint16_t nbuf = maxBlockSize;
-    uint32_t maxLoggerCount = (max_mb*1024*1024)/maxBlockSize;
     uint8_t *buffer=drain();
     if(buffer)
     {
@@ -360,6 +360,8 @@ uint32_t uSD_Logger::save(int mustClose )
         Serial.flush();
 #endif
   }
+  
+  if(mustClose &&(fileStatus==2)) fileStatus=3;
 
   if(fileStatus==3)
   {
