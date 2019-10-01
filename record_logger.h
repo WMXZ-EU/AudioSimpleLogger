@@ -126,7 +126,7 @@ uint8_t * AudioRecordLogger<nc,nq,na>:: drain(void)
         {
           if (++t >= nq) t = 0;
           
-          // copy to buffer     
+          // copy and multiplex data to buffer
           for(int ii=0; ii<nc; ii++) 
           { if(queue[ii][t])
             {
