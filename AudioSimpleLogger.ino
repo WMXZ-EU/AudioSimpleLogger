@@ -19,15 +19,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-// the following includes are explicit to avoid inclusion of "SD.h"
-#include <kinetis.h>
 #include <core_pins.h>
-#include <usb_serial.h>
+
+#include <usb_audio.h>
+
+#ifndef AUDIO_INTERFACE
+  #error "missing AUDIO_INTERFACE definition"
+#endif
 
 #include "input_i2s.h"
 #include "input_i2s_quad.h"
-
-#include "usb_audio.h"
 
 /*************** change if required *****************************/
 // set DO_DEBUG
@@ -43,9 +44,10 @@
 #define NQ  (600/NCH) // number of elements in queue
 // NCH*NQ should be <600 (for about 200 kB RAM usage) 
 
-// for uSD_Logger
-#define FMT "A%04d.bin"
-#define MXFN 10     // max number of files
+// for uSD_Logger write buffer
+// the sequence (64,32,16) is for 16kB write buffer
+#define NAUD (64/NCH) // nch*naud*AUDIO_BLOCK_SAMPLES = 16 kB
+
 #define MAX_MB 40   // max (expected) file size in MB
 
 // for I2S
@@ -53,16 +55,6 @@
 
 /*************** end of possible changes ************************/
 #include "record_logger.h"
-
-// for uSD_Logger write buffer
-// the sequence (64,32,16) is for 16kB write buffer
-#if NCH==1
-  #define NAUD 64
-#elif NCH==2
-  #define NAUD 32
-#elif NCH==4
-  #define NAUD 16
-#endif
 
 static void is2_switchRxOnly(int on)
 {
@@ -108,13 +100,14 @@ public:
   }
 };
 
+
 #if NCH<=2
   AudioInputI2Sm                i2s1; 
 #elif NCH==4
   AudioInputI2SQuadm            i2s1; 
 #endif
 AudioOutputUSB                  usb1;  
-AudioRecordLogger<NCH,NQ,NAUD>  logger1; 
+AudioRecordLogger<NCH,NQ,NAUD>  logger1; // NCH = 2, NQ = (600/NCH) size of queue, NAUD = (64/NCH) buffer size
 
 AudioConnection          patchCord1(i2s1, 0, usb1, 0);
 AudioConnection          patchCord2(i2s1, 1, usb1, 1);
@@ -160,12 +153,10 @@ AudioConnection          patchCord3(i2s1, 0, logger1, 0);
 // not needed if only PJRC I2S pin selection is used
 //
 
-uint16_t generateFilename(char *dev, char *filename);
 /************************ Main Sketch *********************************/
 void setup() {
   // put your setup code here, to run once:
   AudioMemory(50+NCH*NQ);
-  
   //
   while(!Serial);
   Serial.println("Simple Logger");
@@ -185,5 +176,3 @@ void loop() {
   }
     return;
 }
-
-

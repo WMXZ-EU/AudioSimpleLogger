@@ -151,16 +151,15 @@ void uSD_Logger::init(void)
   fileStatus=0;
 }
 
-#include <time.h>
-struct tm seconds2tm(uint32_t tt);
-
-
+#include <TimeLib.h>
 uint16_t generateFilename(char *dev, char *filename)
 {
-  struct tm tx=seconds2tm(RTC_TSR);;
+  tmElements_t tm;
+  breakTime(rtc_get(), tm);
+  
   sprintf(filename,"%s_%04d%02d%02d_%02d%02d%02d.bin",dev,
-          tx.tm_year, tx.tm_mon, tx.tm_mday,
-          tx.tm_hour, tx.tm_min, tx.tm_sec);
+          tm.Year+1970, tm.Month, tm.Day,
+          tm.Hour, tm.Minute, tm.Second);
   return 1;
 }
 
